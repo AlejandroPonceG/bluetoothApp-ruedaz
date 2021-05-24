@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_blue/flutter_blue.dart';
 import 'package:otp/otp.dart';
 // import 'package:bluetooth/bluetooth.dart';
 
@@ -34,11 +38,38 @@ class _MyHomePageState extends State<MyHomePage> {
     'JBSWY3DPEHPK3PXZ',
   ];
 
+  FlutterBlue flutterBlue = FlutterBlue.instance;
+  BluetoothState bluetoothState = BluetoothState.unknown;
+  List<ScanResult> _listScanResult;
+
   //instancia de FlutterBlue
   // FlutterBlue flutterBlue = FlutterBlue.instance;
   String devicesT = "Lista de dispositivos";
   List devices = [];
   bool isSwitched = false;
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    isLoading = true;
+    flutterBlue.startScan();
+    // Listen to scan results
+    flutterBlue.scanResults.listen((results) {
+      for (ScanResult r in results) {
+        log('${r.device.name} found! rssi: ${r.rssi}');
+      }
+      _listScanResult = results;
+      if (_listScanResult != null) {
+        isLoading = false;
+      } else {
+        isLoading = false;
+        log("No hay una gaver por aqui");
+      }
+    });
+    // Stop scanning
+
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +85,11 @@ class _MyHomePageState extends State<MyHomePage> {
           onChanged: (value) {
             setState(() {
               isSwitched = value;
-              print(isSwitched);
+              if (isSwitched) {
+                // Start scanning
+                isLoading = true;
+              }
             });
-            if (isSwitched) {
-              print('hello');
-            }
           },
           activeTrackColor: Colors.yellow,
           activeColor: Colors.orangeAccent,
@@ -91,12 +122,30 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             Padding(padding: EdgeInsets.only(top: 20)),
-            Text(
-              devicesT,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-                fontSize: 20,
+            MaterialButton(
+              onPressed: () {},
+              child: Text("Buscar dispositivos"),
+              color: Colors.green,
+              elevation: 3,
+            ),
+            RefreshIndicator(
+              onRefresh: () => FlutterBlue.instance.startScan(timeout: Duration(seconds: 4)),
+              child: Column(
+                children: [
+                  StreamBuilder<List<ScanResult>>(
+                    stream: FlutterBlue.instance.scanResults,
+                    initialData: [],
+                    builder: (c, snapshot) => Column(
+                      children: snapshot.data
+                          .map(
+                            (r) => ListTile(
+                              title: Text("${r.device.name}"),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(padding: EdgeInsets.only(top: 20)),
